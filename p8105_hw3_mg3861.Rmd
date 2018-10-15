@@ -198,3 +198,82 @@ instacart_data%>%
 
 #Problem 3
 
+Load the NOAA dataset:
+
+```{r}
+library(p8105.datasets)
+
+noaa_data = ny_noaa
+```
+
+Perform some data cleaning: 
+
+Create separate variables for year, month, and day. 
+
+```{r}
+noaa_data = noaa_data%>%
+  janitor::clean_names()%>%
+  separate(date, into = c("year", "month", "day"), sep = "-")
+```
+
+Ensure observations for temperature, precipitation, and snowfall are given in reasonable units. 
+
+```{r}
+noaa_data = noaa_data%>%
+  mutate(prcp_in = prcp/(10*25.4), 
+         snow_in = snow/25.4,
+         snwd_in = snwd/(10*25.4),
+         tmax_f = ((as.double(tmax)/10)*9/5)+32,
+         tmin_f = ((as.double(tmin)/10)*9/5)+32
+         )
+
+```
+
+For snowfall, what are the most commonly observed values? Why?
+
+```{r}
+noaa_data%>%
+  filter(!is.na(snow_in))%>%
+  group_by(snow_in)%>%
+  summarize(N=n())%>%
+  arrange(desc(N))%>%
+  head(10)%>%
+  knitr::kable(col.names = c("Snow (Inches)", "Number of Observations"))
+
+
+```
+
+Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable structure? Any outliers?
+
+```{r}
+visual = noaa_data%>%
+  select(id, year, month, tmax_f)%>%
+  filter(!is.na(tmax_f), month %in% c("01", "07"))%>%
+  mutate(month = recode(month, "01" = "January",
+                        "07" = "July"))%>%
+  group_by(id, month, year)%>%
+  summarize(Mean = mean(tmax_f))%>%
+  mutate(year = as.integer(year))
+
+visual%>%
+  ggplot(aes(x = year, y = Mean, color = id))+
+  geom_point()+
+  geom_line()+
+  facet_grid(~month)+
+  viridis::scale_fill_viridis()+
+  scale_x_continuous(breaks = c(1981:2010))+
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90, hjust = 0))
+
+visual %>%
+  ggplot(aes(x = as.character(year), y = Mean))+
+  geom_boxplot()+
+  facet_grid(~month)+
+  theme(axis.text.x = element_text(angle = 90, hjust = 0))
+
+```
+
+Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a scatterplot may not be the best option); and (ii) make a plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year.
+
+
+
