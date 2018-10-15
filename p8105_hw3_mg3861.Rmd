@@ -10,6 +10,15 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dplyr)
 library(forcats)
+library(ggridges)
+library(patchwork)
+library(hexbin)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
 
 ```
 
@@ -31,7 +40,7 @@ brfss = brfss_smart2010%>%
 
 After the data cleaning, begin some exploration:
 
-1. In 2002, we find that Connecticut, Florida, and North Carolina had observations at 7 different locations. Pennsylvania had observations from  the most locations (10),  while 13 states had observations from only 1 location. 
+In 2002, we find that Connecticut, Florida, and North Carolina had observations at 7 different locations. Pennsylvania had observations from  the most locations (10),  while 13 states had observations from only 1 location. 
 
 ```{r}
 filter(brfss, year == 2002)%>%
@@ -41,7 +50,9 @@ filter(brfss, year == 2002)%>%
   pull(locationabbr)
 ```
 
-2. Make a “spaghetti plot” that shows the number of observations in each state from 2002 to 2010.
+Make a “spaghetti plot” that shows the number of observations in each state from 2002 to 2010.
+
+The number of observations remains relatively constant over the years for a majority of the states. However, we observe a massive spike in number of observations during 2007 and 2010
 
 ```{r}
 
@@ -53,19 +64,21 @@ brfss%>%
   geom_point() +
   geom_line() +
   labs(
-    title = "Number of Observations in each state from 2002 to 2010",
+    title = "Number of Observations (2002 to 2010)" ,
     x = "Year",
     y = "Number of Observations"
   )+
+  scale_x_continuous(breaks = c(2002:2010))+
   viridis::scale_color_viridis(
+    name = "State",
     discrete = TRUE
   ) + 
-  theme(legend.position="none")
+  theme(legend.position="right")
 
 ```
 
 
-3. Make a table showing, for the years 2002, 2006, and 2010, the mean and standard deviation of the proportion of “Excellent” responses across locations in NY State.
+Make a table showing, for the years 2002, 2006, and 2010, the mean and standard deviation of the proportion of “Excellent” responses across locations in NY State.
 
 There is a decrease in mean proportion of "Excellent" responses from 2002 to 2006 and a slight increase in mean proportion from 2006 and 2010. Furthermoe, the standard deviation of the proportion of "Excellent" responses has decreased across the years. A hypothesis test would be needed to evaluate whether the changes are truly significant.
 
@@ -82,9 +95,9 @@ brfss%>%
 
 ```
 
-4. For each year and state, compute the average proportion in each response category. Then make a five-panel plot that shows, for each response category separately, the distribution of these state-level averages over time.
+For each year and state, compute the average proportion in each response category. Then make a five-panel plot that shows, for each response category separately, the distribution of these state-level averages over time.
 
-On average, the "very good" category has the highest proportions in comparison to the other response groups. The "poor" response category has the lower proportions, on average. There appears to be no overlap between "excellent" and "poor" categories, "fair" and "good" categories, "fair" and "very good" categories, "good" and "poor" categories, as well as "poor" and "very good" categories. Once again, hypothesis testing would be most appropriate to determine whether the differences in the response groups are truly significant.
+On average, the "very good" category has the highest proportions in comparison to the other response groups. The "poor" response category has the lowest proportions, on average. Looking at both visuals, there appears to be no overlap between "excellent" and "poor" categories, "fair" and "good" categories, "fair" and "very good" categories, "good" and "poor" categories, as well as "poor" and "very good" categories. Once again, hypothesis testing would be most appropriate to determine whether the differences in the response groups are truly significant. Furthermore, in each response group, the distribution of the boxplots across the years are fairly similar (no outstanding differences), with the occassional outliers. 
 
 ```{r warning = FALSE}
 average = brfss%>%
@@ -109,6 +122,8 @@ average%>%
   viridis::scale_color_viridis(
     discrete = TRUE
   ) + 
+  labs(x = "Year",
+       y = "Proportion")+
   theme(legend.position="none",
         axis.text.x = element_text(angle = 90, hjust = 0))
 
@@ -116,6 +131,8 @@ average%>%
   ggplot(aes(x = as.character(year), y = proportion))+
   geom_boxplot()+
   facet_grid(~response)+
+  labs(x = "Year",
+       y = "Proportion")+
   theme(
         axis.text.x = element_text(angle = 90, hjust = 0))
 
@@ -125,7 +142,7 @@ average%>%
 
 Using the Instacart data, perform some data cleaning and exploration:
 
-```{r include = FALSE}
+```{r}
 library(p8105.datasets)
 
 instacart_data = instacart
@@ -141,9 +158,10 @@ instacart_data = instacart_data%>%
                             "6" = "Saturday"))
 ```
 
-Write a short description of the dataset, noting the size and structure of the data, describing some key variables, and giving illstrative examples of observations
 
-1. There are 134 aisles. The aisles with the most items ordered include: fresh vegetables, fresh fruit, packaged vegetables and fruits, yogurt, packaged cheese, water/sparkling water. The fresh vegetables and fruits aisles have a disproportionately higher number of orders than the other top 6 aisles (over 150,000 orders in comparison to less than 80,000 orders).  
+Mr. Instacart dataset contains `r nrow(instacart_data) ` observations with 15 variables. The variables are a mix of integers and characters. Each row provides information regarding a specific item in a specific order made. For example the first observation provides information about Bulgarian Yogurt (which was made in order 1) - what day the order was made, whether the item was reordered, what aisle the item is found in, what department the order in, etc.
+
+There are 134 aisles. The aisles with the most items ordered include: fresh vegetables, fresh fruit, packaged vegetables and fruits, yogurt, packaged cheese, water/sparkling water. The fresh vegetables and fruits aisles have a disproportionately higher number of orders than the other top 6 aisles (over 150,000 orders in comparison to less than 80,000 orders).  
 
 ```{r}
 aisles=instacart_data%>%
@@ -159,7 +177,9 @@ aisles%>%
   knitr::kable(col.names = c("Aisle","Number of Orders"))
 ```
 
-2. Make a plot that shows the number of items ordered in each aisle. Order aisles sensibly, and organize your plot so others can read it
+Make a plot that shows the number of items ordered in each aisle. Order aisles sensibly, and organize your plot so others can read it
+
+As mentioned previously, there are certain items that have a disproportionately high number of orders. Therefore, these outliers result in a highly skewed graph, where it is difficult to observe aisles that have less than 20,000 orders.  
 
 ```{r}
 aisles%>%
@@ -167,12 +187,16 @@ aisles%>%
   geom_col()+
   viridis::scale_color_viridis(
     discrete = TRUE) + 
+  labs(x = "Aisle Name",
+       y = "Number of Items")+
   theme(legend.position = "none",
         axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
 
-3. Make a table showing the most popular item in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”
+Make a table showing the most popular item in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”
+
+In the baking ingredients aisle, light brown sugar has the most number of orders. In the dog food care aisle, snack sticks chicken & rice recipe dog treats have the most popular item. In packaged vegetables and fruits aisle, organic baby spinach is the most popular item. Previously, we discovered that the packaged vegetables and fruits aisle is one of the top 3 most popular aisles. Out of the three popular items, organic baby spinach has the most number of orders. 
 
 ```{r}
 instacart_data%>%
@@ -184,7 +208,9 @@ instacart_data%>%
   knitr::kable(col.names = c("Aisle", "Item", "Number of Orders"))
 ```
 
-4. Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week
+Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week
+
+The mean hour at which Pink Lady Apples and Coffee Ice Cream are ordered is fairly similar on Sunday, Wednesday, and Saturday. On Monday, Tuesday, Thursday, and Friday, it seems that people order Pink Lady Apples in the late morning hours while people order Coffee Ice Cream in the afternoon times. 
 
 ```{r}
 instacart_data%>%
@@ -229,7 +255,7 @@ noaa_data = noaa_data%>%
 
 ```
 
-For snowfall, what are the most commonly observed values? Why?
+For snowfall, the most commonly observed value is 0.
 
 ```{r}
 noaa_data%>%
@@ -244,6 +270,8 @@ noaa_data%>%
 ```
 
 Make a two-panel plot showing the average max temperature in January and in July in each station across years. Is there any observable structure? Any outliers?
+
+As expected, the mean temperature is higher for the month of July than January. In both months, there are outliers present across the years. It seems as if there are more differences in the distribution of boxplots across the different year in January than in July. 
 
 ```{r}
 visual = noaa_data%>%
@@ -261,6 +289,8 @@ visual%>%
   geom_line()+
   facet_grid(~month)+
   viridis::scale_fill_viridis()+
+  labs(x = "Year",
+       y = "Mean Maximum Temperature (F)")+
   scale_x_continuous(breaks = c(1981:2010))+
   theme(legend.position = "none",
         axis.text.x = element_text(angle = 90, hjust = 0))
@@ -269,11 +299,34 @@ visual %>%
   ggplot(aes(x = as.character(year), y = Mean))+
   geom_boxplot()+
   facet_grid(~month)+
+   labs(x = "Year",
+       y = "Mean Maximum Temperature (F)")+
   theme(axis.text.x = element_text(angle = 90, hjust = 0))
 
 ```
 
+
 Make a two-panel plot showing (i) tmax vs tmin for the full dataset (note that a scatterplot may not be the best option); and (ii) make a plot showing the distribution of snowfall values greater than 0 and less than 100 separately by year.
 
+In each year, there is a number of outliers for the amount of snowfall. 
+```{r}
+one = noaa_data%>%
+  filter(!is.na(tmin_f), !is.na(tmax_f))%>%
+  ggplot(aes(x = tmin_f, y = tmax_f))+
+  geom_hex()+
+  labs(x = "Minimum Temperature (F)",
+       y = "Maximum Temperature (F)")
+
+two= noaa_data%>%
+  filter(snow_in > 0 & snow_in < 100)%>%
+  ggplot(aes(x = as.character(year),y = snow_in)) + 
+  geom_boxplot()+
+  labs(x = "Year",
+       y = "Snowfall (Inches)")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 0))
+
+one+two
+
+```
 
 
