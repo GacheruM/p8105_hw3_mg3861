@@ -1,5 +1,6 @@
 ---
 title: "Homework 3 - Visualization"
+name: "Margaret Gacheru"
 output: github_document
 ---
 
@@ -8,27 +9,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(dplyr)
+library(forcats)
 
-knitr::opts_chunk$set(
-  fig.width = 6,
-  fig.asp = .6,
-  out.width = "90%"
-)
-
-theme_set(theme_bw() + theme(legend.position = "bottom"))
 ```
 
 #Problem 1
 
-First, do some data cleaning by
-
-1. Using appropriate variable names
-
-2. Filtering the data based on the “Overall Health” topic
-
-3. Including only responses from “Excellent” to “Poor”
-
-4. Organizing responses as a factor taking levels ordered from “Excellent” to “Poor”
+First, do some data cleaning by using appropriate variable names, filtering the data based on the “Overall Health” topic, including only responses from “Excellent” to “Poor”, and organizing responses as a factor taking levels ordered from “Excellent” to “Poor”
 
 ```{r}
 library(p8105.datasets)
@@ -37,7 +24,7 @@ brfss = brfss_smart2010%>%
   janitor::clean_names()%>%
   filter(topic == "Overall Health", 
          response %in% c("Excellent", "Very good", "Good", "Fair", "Poor"))%>%
-  mutate(response = factor(response, levels = c("Excellent", "Very good", "Good", "Fair", "Poor")))
+  mutate(response = forcats::fct_relevel(response, "Excellent", "Very good", "Good", "Fair", "Poor"))
          
 ```
 
@@ -89,12 +76,13 @@ brfss%>%
   select(year, locationabbr, locationdesc, response, data_value)%>%
   spread(key = response, value = data_value)%>%
   group_by(year)%>%
-  summarize(Mean = mean(Excellent), SD = sd(Excellent))
+  summarize(Mean = mean(Excellent), SD = sd(Excellent))%>%
+  knitr::kable(col.names = c("Year", "Mean", "SD"))
   
 
 ```
 
-3. For each year and state, compute the average proportion in each response category. Then make a five-panel plot that shows, for each response category separately, the distribution of these state-level averages over time.
+4. For each year and state, compute the average proportion in each response category. Then make a five-panel plot that shows, for each response category separately, the distribution of these state-level averages over time.
 
 On average, the "very good" category has the highest proportions in comparison to the other response groups. The "poor" response category has the lower proportions, on average. There appears to be no overlap between "excellent" and "poor" categories, "fair" and "good" categories, "fair" and "very good" categories, "good" and "poor" categories, as well as "poor" and "very good" categories. Once again, hypothesis testing would be most appropriate to determine whether the differences in the response groups are truly significant.
 
@@ -110,16 +98,25 @@ average = brfss%>%
             Fair = mean(fair),
             Poor = mean(poor)
             )%>%
-  gather(key = response, value = proportion, Excellent:Poor)
+  gather(key = response, value = proportion, Excellent:Poor)%>%
+  mutate(response = forcats::fct_relevel(response, "Excellent", "Very_good", "Good", "Fair", "Poor"))
 
 average%>%
   ggplot(aes(x = year, y = proportion, color = locationabbr)) +
   geom_line()+
   facet_grid(~response ) +
+  scale_x_continuous(breaks = c(2002:2010))+
   viridis::scale_color_viridis(
     discrete = TRUE
   ) + 
   theme(legend.position="none",
+        axis.text.x = element_text(angle = 90, hjust = 0))
+
+average%>%
+  ggplot(aes(x = as.character(year), y = proportion))+
+  geom_boxplot()+
+  facet_grid(~response)+
+  theme(
         axis.text.x = element_text(angle = 90, hjust = 0))
 
 ```
@@ -128,17 +125,76 @@ average%>%
 
 Using the Instacart data, perform some data cleaning and exploration:
 
-```{r}
+```{r include = FALSE}
 library(p8105.datasets)
 
 instacart_data = instacart
 
-instacart_data%>%
-  janitor::clean_names()
+instacart_data = instacart_data%>%
+  janitor::clean_names()%>%
+  mutate(order_dow = recode(as.character(order_dow), "0" = "Sunday",
+                            "1" = "Monday",
+                            "2" = "Tuesday",
+                            "3" = "Wednesday",
+                            "4" = "Thursday",
+                            "5" = "Friday",
+                            "6" = "Saturday"))
+```
+
+Write a short description of the dataset, noting the size and structure of the data, describing some key variables, and giving illstrative examples of observations
+
+1. There are 134 aisles. The aisles with the most items ordered include: fresh vegetables, fresh fruit, packaged vegetables and fruits, yogurt, packaged cheese, water/sparkling water. The fresh vegetables and fruits aisles have a disproportionately higher number of orders than the other top 6 aisles (over 150,000 orders in comparison to less than 80,000 orders).  
+
+```{r}
+aisles=instacart_data%>%
+  group_by(aisle)%>%
+  summarize(N = n())
+  
+aisles%>%
+  nrow()
+
+aisles%>%
+  arrange(desc(N))%>%
+  head(6)%>%
+  knitr::kable(col.names = c("Aisle","Number of Orders"))
+```
+
+2. Make a plot that shows the number of items ordered in each aisle. Order aisles sensibly, and organize your plot so others can read it
+
+```{r}
+aisles%>%
+  ggplot(aes(reorder(aisle, desc(N)), N), color = aisle)+
+  geom_col()+
+  viridis::scale_color_viridis(
+    discrete = TRUE) + 
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90, hjust = 1))
 
 ```
 
-write a short description of the dataset, noting the size and structure of the data, describing some key variables, and giving illstrative examples of observations
+3. Make a table showing the most popular item in each of the aisles “baking ingredients”, “dog food care”, and “packaged vegetables fruits”
+
+```{r}
+instacart_data%>%
+  filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits"))%>%
+  group_by(aisle, product_name)%>%
+  summarize(n = n())%>%
+  group_by(aisle)%>%
+  filter(n == max(n))%>%
+  knitr::kable(col.names = c("Aisle", "Item", "Number of Orders"))
+```
+
+4. Make a table showing the mean hour of the day at which Pink Lady Apples and Coffee Ice Cream are ordered on each day of the week
+
+```{r}
+instacart_data%>%
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream"))%>%
+  group_by(product_name, order_dow)%>%
+  summarize(Mean_hour = mean(order_hour_of_day))%>%
+  spread(key = order_dow, value = Mean_hour)%>%
+  knitr::kable(col.names = c("Product Name", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
 
 
+#Problem 3
 
